@@ -36,7 +36,7 @@ In this next phase, we put on our data analyst hat and analyze and visualize our
 
 Here is a data flow diagram that summarizes our pipeline:
 ![SleeperProject-DFD](https://github.com/user-attachments/assets/63760a43-4ee8-419c-9d86-53cf653312ee)
-*This flow chart was created using [Lucidchart](https://www.lucidchart.com/pages/?).*
+*This flow chart was created using [Lucidchart](https://www.lucidchart.com/).*
 
 And for analysts, here is the database schema that I've created:
 ![sleeper_schema](https://github.com/user-attachments/assets/233554ff-177e-416d-9361-1055c4701bc1)
@@ -60,15 +60,75 @@ The service principal is the entity that accesses certain Azure resources. Using
 #### Key Vault
 Azure Key Vault securely stores and manages sensitive information, such as secrets, keys, and certificates. This is where the credentials to our service principal will be found. Our databricks workspace will access the key vault to retrieve the credentials needed to authenticate the Service Principal, which enables access to the fantasy football data in our data lake. 
 
-Here is a relationship diagram of all the resources in our scenario:
-![Azure Resource Relationship Diagram for Sleeper Project](https://github.com/user-attachments/assets/d553474c-8f62-4f19-acbf-cbb5018c0bde)
+Here is a relationship diagram of all the resources in our scenario (also created using [Lucidchart](https://www.lucidchart.com)):
+![Azure Resource Relationship Diagram for Sleeper Project](https://github.com/user-attachments/assets/b00456f8-7d87-48ae-8bf1-d5d5452bc20d)
 
 In summary, the Service Principal acts like a trusted person, or identity, that provides access to a highly secure storage location (the data lake). We can interact with this person from our Databricks workspace, but only if we use a secret password that can be found in a secure book of secrets (our Key Vault). I hope this simplifies the understanding of the relationship between all the resources. If you want more information on Azure resources, you can read documentation and tutorials [here](https://learn.microsoft.com/en-us/azure/?product=popular). YouTube and Udemy are also great resources.
 
-### II. The First Task in Databricks: The Set-up Folder
+### II. The First Task in Databricks: The Set-Up Folder
 Inside our set-up folder of our workspace, we must define any global variables and mount our ADLS containers. The only global variables we are defining are the `CURRENT_LEAGUE_ID` and `ALL_SEASONS` variables.
 
 #### Global Variables
-Each season of your fantasy football league will have its own separate league ID. However, when viewing your fantasy league on the Sleeper website, the URL will contain the league ID for the current season. If you are in a Sleeper league, you can navigate through past seasons and discover that the league ID in the URLs are different. We can manually store these in a data structure, but that would take a lot of work, especially if your league's history extends to many past seasons.
+<img align="right" width="230" height="280" src="https://github.com/user-attachments/assets/aabca3eb-e0f2-4bc2-86de-8f71a1098c65">
 
-To automate this, a call using the Sleeper API will provide a `previous_league_id` key in a JSON response.
+It is important to note that each season of your fantasy football league will have its own separate league ID. This is because Sleeper defines a league as a unique season for the group of users participating in it. When a new season begins, a new league ID is generated. The figure on the right (from the [Sleeper API documentation](https://docs.sleeper.com/)) shows there are different endpoints that provide access to various kinds of information, but only for a specific "league" or season. Therefore, you need to provide a specific league ID when making a GET request for information such as transactions. If you need information from other seasons, you must make additional requests using their respective league IDs.
+
+Considering what we just discussed, we're going to eventually make a lot of calls to retrieve different kinds of information for each league ID in our league's history. As you navigate through the current and past seasons of your league on the Sleeper website, you'll notice that the league ID in the URL will change. We can manually store these via copy and paste inside a Python data structure, but that would take a lot of work, especially if your league's history extends to many past seasons.
+
+To automate this process, we use the endpoint that retrieves a specific league. The URL for it is:
+
+`https://api.sleeper.app/v1/league/<league_id>`
+
+By replacing `<league_id>` with our current league ID and examining the JSON response, we find a `previous_league_id` key. With code, we can iterate through these `previous_league_id` values, making multiple API calls until we encounter a `None` value, which indicates we have reached the very first season. At each iteration, we will record the year of the season, found in `season`, and the value of `league_id`. Then, use the value of `previous_league_id` to make the next call.
+
+At the end of the task, all this information should be stored in a Python dictionary where the key is the year of the season, and the value is the corresponding league ID. The dictionary should look like this:
+```
+{
+  2024: 1048353521130741760,
+  2023: 917263521006592000,
+  2022: 833585949995814912
+}
+```
+These will be the league IDs for my Sleeper league, but yours will look different. Let's now create a new notebook in our set-up folder to create the function that does exactly what we just described. Make sure to import the `requests` library, which allows you to send HTTP requests easily.
+
+Here is the function that will complete our tasks:
+```
+def generate_league_history(current_league_id: int) -> dict:
+  if not isinstance(current_league_id, int):
+    raise TypeError("current_league_id must be an integer.")
+
+  league_id = current_league_id
+  league_history = {}
+
+  try:
+    # Make a HTTP request to sleeper API
+    response = requests.get(f"https://api.sleeper.app/v1/league/{league_id}")
+    
+    # Parse the JSON response; The .json() method returns a Python dictionary
+    data = response.json()
+    
+    # Add the current league_id to the dictionary
+    league_history[int(data['season'])] = int(data['league_id'])
+    
+    # Keep adding league IDs to the dictionary until we reach the first season in the history
+    while data['previous_league_id'] is not None:
+    
+      # Make another HTTP request to get previous season's information
+      league_id = data['previous_league_id']
+      response = requests.get(f"https://api.sleeper.app/v1/league/{league_id}")
+      data = response.json()
+    
+      league_history[int(data['season'])] = int(data['league_id'])
+  
+  except Exception as e:
+    print(f"An error occurred while generating league history: {e}")
+    return {}
+  
+  return league_history
+```
+Then we assign our variables `CURRENT_LEAGUE_ID` and `ALL_SEASONS`.
+```
+CURRENT_LEAGUE_ID = 1048353521130741760
+ALL_SEASONS = generate_league_history(CURRENT_LEAGUE_ID)
+```
+Great! Our first notebook is finished! 
