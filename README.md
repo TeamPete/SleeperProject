@@ -38,4 +38,37 @@ Here is a data flow diagram that summarizes our pipeline:
 ![SleeperProject-DFD](https://github.com/user-attachments/assets/63760a43-4ee8-419c-9d86-53cf653312ee)
 *This flow chart was created using [Lucidchart](https://www.lucidchart.com/pages/?).*
 
-And for analysts, here is our database structure:
+And for analysts, here is the database schema that I've created:
+![sleeper_schema](https://github.com/user-attachments/assets/233554ff-177e-416d-9361-1055c4701bc1)
+*This diagram was created using [dbdiagram.io](https://dbdiagram.io/)*
+
+Later on in our project, we'll create a couple more tables (i.e. `standings` and `matchups`) for presentation.
+
+## Project Set-Up
+### I. Creating our Resources in the Azure Portal
+Our project begins in the Azure portal where I create all my instances of the necessary Azure services. I will go in detail the resources that I've created.
+
+#### Azure Databricks
+As I've described briefly before, Databricks is an integrated analytics platform that simplifies big data and AI workloads. It provides an environment for data professionals to collaborate and perform tasks, such as ingestion, transformation, and analysis.
+
+#### Storage Account (ADLS)
+A data lake is best used for structure and unstructured data and allows for diverse formats, such as files, images, videos, and more. Azure provides a data lake that is created when setting up a storage account in the Azure portal. Within our Databricks workspace, we will be accessing data stored in this data lake.
+
+#### Service Principal
+The service principal is the entity that accesses certain Azure resources. Using a service principal is ideal for organizations/projects dealing with classified or confidential data as it is more secure and provides granular permissions through role-based access control. While fantasy football data doesn't require such an authentication method, I personally want to emulate working within an environment that deals with secure data. 
+
+#### Key Vault
+Azure Key Vault securely stores and manages sensitive information, such as secrets, keys, and certificates. This is where the credentials to our service principal will be found. Our databricks workspace will access the key vault to retrieve the credentials needed to authenticate the Service Principal, which enables access to the fantasy football data in our data lake. 
+
+Here is a relationship diagram of all the resources in our scenario:
+![Azure Resource Relationship Diagram for Sleeper Project](https://github.com/user-attachments/assets/d553474c-8f62-4f19-acbf-cbb5018c0bde)
+
+In summary, the Service Principal acts like a trusted person, or identity, that provides access to a highly secure storage location (the data lake). We can interact with this person from our Databricks workspace, but only if we use a secret password that can be found in a secure book of secrets (our Key Vault). I hope this simplifies the understanding of the relationship between all the resources. If you want more information on Azure resources, you can read documentation and tutorials [here](https://learn.microsoft.com/en-us/azure/?product=popular). YouTube and Udemy are also great resources.
+
+### II. The First Task in Databricks: The Set-up Folder
+Inside our set-up folder of our workspace, we must define any global variables and mount our ADLS containers. The only global variables we are defining are the `CURRENT_LEAGUE_ID` and `ALL_SEASONS` variables.
+
+#### Global Variables
+Each season of your fantasy football league will have its own separate league ID. However, when viewing your fantasy league on the Sleeper website, the URL will contain the league ID for the current season. If you are in a Sleeper league, you can navigate through past seasons and discover that the league ID in the URLs are different. We can manually store these in a data structure, but that would take a lot of work, especially if your league's history extends to many past seasons.
+
+To automate this, a call using the Sleeper API will provide a `previous_league_id` key in a JSON response.
