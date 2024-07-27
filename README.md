@@ -131,4 +131,6 @@ Then we assign our variables `CURRENT_LEAGUE_ID` and `ALL_SEASONS`.
 CURRENT_LEAGUE_ID = 1048353521130741760
 ALL_SEASONS = generate_league_history(CURRENT_LEAGUE_ID)
 ```
-Great! Our first notebook is finished! 
+Our first notebook is complete! You can check the full code [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/global_variables.ipynb). I will make sure to link more notebooks as we progress further into the project steps.
+
+#### Mounting ADLS Containers
