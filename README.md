@@ -44,7 +44,7 @@ And for analysts, here is the database schema that I've created:
 
 Later on in our project, we'll create a couple more tables (i.e. `standings` and `matchups`) for presentation.
 
-## Project Set-Up
+## Phase One: Project Set-Up
 ### I. Creating our Resources in the Azure Portal
 Our project begins in the Azure portal where I create all my instances of the necessary Azure services. I will go in detail the resources that I've created.
 
@@ -65,7 +65,7 @@ Here is a relationship diagram of all the resources in our scenario (also create
 
 In summary, the Service Principal acts like a trusted person, or identity, that provides access to a highly secure storage location (the data lake). We can interact with this person from our Databricks workspace, but only if we use a secret password that can be found in a secure book of secrets (our Key Vault). I hope this simplifies the understanding of the relationship between all the resources. If you want more information on Azure resources, you can read documentation and tutorials [here](https://learn.microsoft.com/en-us/azure/?product=popular). YouTube and Udemy are also great resources.
 
-### II. The First Task in Databricks: The Set-Up Folder
+### II. Getting Started in Databricks: The Set-Up Folder
 Inside our set-up folder of our workspace, we must define any global variables and mount our ADLS containers. The only global variables we are defining are the `CURRENT_LEAGUE_ID` and `ALL_SEASONS` variables.
 
 #### Global Variables
@@ -131,6 +131,11 @@ Then we assign our variables `CURRENT_LEAGUE_ID` and `ALL_SEASONS`.
 CURRENT_LEAGUE_ID = 1048353521130741760
 ALL_SEASONS = generate_league_history(CURRENT_LEAGUE_ID)
 ```
-Our first notebook is complete! You can check the full code [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/global_variables.ipynb). I will make sure to link more notebooks as we progress further into the project steps.
+After attaching the notebook to a cluster, run the code and make sure to print `ALL_SEASONS` to check your results. Our first notebook is complete! You can check the full code [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/global_variables.ipynb). I will make sure to link more notebooks as we progress further into the project steps.
 
 #### Mounting ADLS Containers
+*Content yet to be written*
+
+## Phase Two: Designing our Pipeline
+## Phase Three: Analyzing the Data
+## Our Findings and Conclusion
