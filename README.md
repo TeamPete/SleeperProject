@@ -52,13 +52,13 @@ Our project begins in the Azure portal where I create all my instances of the ne
 As I've described briefly before, Databricks is an integrated analytics platform that simplifies big data and AI workloads. It provides an environment for data professionals to collaborate and perform tasks, such as ingestion, transformation, and analysis.
 
 #### Storage Account (ADLS)
-A data lake is best used for structure and unstructured data and allows for diverse formats, such as files, images, videos, and more. Azure provides a data lake that is created when setting up a storage account in the Azure portal. Within our Databricks workspace, we will be accessing data stored in this data lake.
+A data lake is best used for structure and unstructured data and allows for diverse formats, such as files, images, videos, and more. Azure provides a data lake that is created when setting up a storage account in the Azure portal. Upon set-up, we created our raw, processed, and presentation containers. Within our Databricks workspace, we will be accessing data stored in this data lake. 
 
 #### Service Principal
-The service principal is the entity that accesses certain Azure resources. Using a service principal is ideal for organizations/projects dealing with classified or confidential data as it is more secure and provides granular permissions through role-based access control. While fantasy football data doesn't require such an authentication method, I personally want to emulate working within an environment that deals with secure data. 
+The service principal is the entity that accesses certain Azure resources. Using a service principal is ideal for organizations/projects dealing with classified or confidential data as it is more secure and provides granular permissions through role-based access control. When configuring our data lake in the Azure portal, we assigned the "Storage Blob Data Contributor" role to our Service Principal. This role grants read, write, and delete access to Azure Storage blob containers and data, including the raw, processed, and presentation containers we created. While fantasy football data doesn't require such an authentication method, I personally want to emulate working within an environment that deals with secure data. 
 
 #### Key Vault
-Azure Key Vault securely stores and manages sensitive information, such as secrets, keys, and certificates. This is where the credentials to our service principal will be found. Our databricks workspace will access the key vault to retrieve the credentials needed to authenticate the Service Principal, which enables access to the fantasy football data in our data lake. 
+Azure Key Vault securely stores and manages sensitive information, such as secrets, keys, and certificates. This is where the credentials to our service principal will be found. Our Databricks workspace will access the key vault to retrieve the credentials needed to authenticate the Service Principal, which enables access to the fantasy football data in our data lake. 
 
 Here is a relationship diagram of all the resources in our scenario (also created using [Lucidchart](https://www.lucidchart.com)):
 ![Azure Resource Relationship Diagram for Sleeper Project](https://github.com/user-attachments/assets/b00456f8-7d87-48ae-8bf1-d5d5452bc20d)
@@ -134,8 +134,85 @@ ALL_SEASONS = generate_league_history(CURRENT_LEAGUE_ID)
 After attaching the notebook to a cluster, run the code and make sure to print `ALL_SEASONS` to check your results. Our first notebook is complete! You can check the full code [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/global_variables.ipynb). I will make sure to link more notebooks as we progress further into the project steps.
 
 #### Mounting ADLS Containers
-*Content yet to be written*
+Databricks has a secure storage mechanism for managing sensitive information called the **secret scope**. We must create one and link it with our Key Vault, accessing the credentials. 
 
+When creating a new notebook, our first step is to assign those credentials to our variables. We use the **dbutils** library to access our secret scope.
+```
+client_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-id')
+tenant_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-tenant-id')
+client_secret = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-secret')
+```
+
+Afterwards, we must set up our mount point. Microsoft Learn actually shows us how to create a mount point in our notebook. Please refer [here](https://learn.microsoft.com/en-us/azure/databricks/dbfs/mounts) to see how to create a mount point.
+
+The first step is to set up the Spark configuration.
+```
+configs = {"fs.azure.account.auth.type": "OAuth",
+          "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+          "fs.azure.account.oauth2.client.id": client_id,
+          "fs.azure.account.oauth2.client.secret": client_secret,
+          "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
+```
+
+Then use **dbutils** to mount the container.
+```
+# Mount the storage account container
+dbutils.fs.mount(
+    source = f"abfss://{<container_name>}@{<storage_account>}.dfs.core.windows.net/",
+    mount_point = <mount_point>,
+    extra_configs = configs)
+```
+
+For example, if we mounted our "raw" container, our mount point would be "/mnt/sleeperprojectdl/raw".
+
+In our notebook, we encapsulate this process in a function and use a for loop to iterate through a list of container names, mounting each container in turn. 
+```
+def mount_adls(storage_account, container_name):
+    # Get secrets from Azure Key Vault
+    client_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-id')
+    tenant_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-tenant-id')
+    client_secret = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-secret')
+
+    # Set Spark configuration
+    configs = {"fs.azure.account.auth.type": "OAuth",
+          "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+          "fs.azure.account.oauth2.client.id": client_id,
+          "fs.azure.account.oauth2.client.secret": client_secret,
+          "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
+    
+    # Create mount point
+    mount_point = f"/mnt/{storage_account}/{container_name}"
+    
+    # Check if mount point already exists
+    existing_mounts = [mount.mountPoint for mount in dbutils.fs.mounts()]
+
+    if mount_point in existing_mounts:
+        # Unmount the existing mount point
+        dbutils.fs.unmount(mount_point)
+        print(f"Unmounted previously existing mount at {mount_point}")
+    
+    # Mount the storage account container
+    dbutils.fs.mount(
+        source = f"abfss://{container_name}@{storage_account}.dfs.core.windows.net/",
+        mount_point = mount_point,
+        extra_configs = configs)
+    
+    print(f"Successfully mounted abfss://{container_name}@{storage_account}.dfs.core.windows.net/ to {mount_point}")
+```
+
+In addition, I did some conditional checking to see whether the mount point already exists in **dbutils.fs.mounts()** and had messages prepared so that we knew what issues we ran into in case of an unsuccessful mount.
+
+Now, we just need to mount each of our containers.
+```
+# Mounting containers
+storage_account = 'sleeperprojectdl'
+containers_for_project = ['raw', 'processed', 'presentation']
+
+for container in containers_for_project:
+    mount_adls(storage_account, container)
+```
+
+We have finished! The entire notebook for this can be found here.
 ## Phase Two: Designing our Pipeline
 ## Phase Three: Analyzing the Data
 ## Our Findings and Conclusion
