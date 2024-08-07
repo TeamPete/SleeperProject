@@ -212,7 +212,9 @@ for container in containers_for_project:
     mount_adls(storage_account, container)
 ```
 
-We have finished! The entire notebook for this can be found here.
+We have finished! The entire notebook for this can be found [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/mount_adls_containers.ipynb).
 ## Phase Two: Designing our Pipeline
+
+
 ## Phase Three: Analyzing the Data
 ## Our Findings and Conclusion
