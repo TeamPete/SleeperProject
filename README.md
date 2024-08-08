@@ -214,7 +214,68 @@ for container in containers_for_project:
 
 We have finished! The entire notebook for this can be found [here](https://github.com/TeamPete/SleeperProject/blob/main/set-up/mount_adls_containers.ipynb).
 ## Phase Two: Designing our Pipeline
+### I. Extraction
 
+Our pipeline begins with extraction, which uses the **requests** library to make GET requests to Sleeper's API. We save the responses as JSON files in our "raw" container. The extraction process is divided into two notebooks: one for creating the extraction class, where each method calls a different endpoint of the Sleeper API, and another for creating an instance of this class and executing all necessary methods.
+
+#### Extraction Class
+We begin by writing the __init__ method (constructor) for our extraction class, which accepts `league_id` and `year` as parameters. This method also initializes additional attributes, such as `max_week` (set to 17) and `draft_id`. These attributes are crucial because they will be included in the URLs of the API endpoints we will be using.
+
+```
+class SeasonExtractor:
+    def __init__(self, league_id: int, year: int):
+        current_year = datetime.now().year
+        
+        # Enforce the integer type of league_id.
+        if not isinstance(league_id, int) or not isinstance(league_id, int) or year > current_year or year < 2017:
+            raise TypeError("You must pass valid league_id and year values")
+
+        self.league_id = league_id
+        self.year = year
+        self.max_week = 17
+        self.draft_id = None
+
+        try:
+            url = f"https://api.sleeper.app/v1/league/{self.league_id}"
+            response = requests.get(url)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"An error occurred while creating a SeasonExtractor instance: {e}")
+
+        if response.json()['status'] == 'in_season':
+            self.max_week = response.json()['settings']['leg'] - 1
+        
+        self.draft_id = response.json()['draft_id']
+```
+
+In this __init__ method, I've created checks to enforce the integer type of `league_id` and a valid `year`. Additionally, we make a call to the Sleeper API. This particular URL gives us basic information of a specific league. We will want to find the `draft_id` since we will need it.
+
+Throughout the class notebook, I define methods for each endpoint and store the response as JSON in the "raw" container. In the example below, I am getting matchup information. In this particular URL however, I must specify which week. To get matchups for all the weeks, I use a for loop to iterate through all possible weeks, making a different call at each turn.
+```
+def extract_matchups(self):
+    print(f"\nExtracting {self.year} matchups...")
+
+    for week in range(1, self.max_week + 1):
+        try:
+            url = f"https://api.sleeper.app/v1/league/{self.league_id}/matchups/{week}"
+            response = requests.get(url)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"An error occurred while fetching {self.year} regular season matchups: {e}")
+
+        json_content = json.dumps(response.json(), indent=4)
+        file_path = f"/mnt/sleeperprojectdl/raw/{self.year}/matchups/week_{week}.json"
+            
+        dbutils.fs.put(file_path, json_content, overwrite=True)
+        print(f"Successfully wrote {self.year} week {week} matchups to /mnt/sleeperprojectdl/raw")
+```
+
+As you can see, we save the file as JSON using the mount point we had created.
+
+I won't go over every method, but the rest of the methods extract basic league information, transactions, rosters, users, and draft results. If you want to see the full code of the extraction class and how I define each method, click [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/season_extractor_class.ipynb).
+
+#### Execute Extraction
+In this `extraction_main` notebook, I execute the extraction. 
 
 ## Phase Three: Analyzing the Data
 ## Our Findings and Conclusion
