@@ -385,6 +385,123 @@ In the ingestion folder, each notebook will be responsible for handling a file o
 4. Clean the data
 5. Save the data to our "processed" container as a parquet file
 
+I will go over two notebooks to demonstrate this process. For the rest of the notebooks in the ingestion folder, you can click here.
+
+#### Ingesting Draft Picks
+Let's look at the "draft_picks" notebook. To start off, we import the data types from the `pyspark.sql.types` module. This module provides classes that define the data types used in Spark DataFrames. You use these classes when you need to define or enforce a specific schema for your DataFrame, ensuring that each column has a specific data type.
+
+Additionally, the module `pyspark.sql.functions` provides a collection of built-in functions that you can use to manipulate data within Spark DataFrames.
+```
+from pyspark.sql.types import StructType, StructField, StringType, BooleanType, DecimalType, FloatType, IntegerType
+from pyspark.sql.functions import col, current_timestamp, lit, concat, when, explode
+import json
+```
+
+The next step is to observe the "draft_picks" JSON file from my "raw" container. I'm looking at the fields I'm ingesting and what data types I need to enforce in my schema.
+```
+[
+    {
+        "round": 1,
+        "roster_id": 2,
+        "player_id": "9509",
+        "picked_by": "450908656402165760",
+        "pick_no": 1,
+        "metadata": {
+            "years_exp": "0",
+            "team": "ATL",
+            "status": "Active",
+            "sport": "nfl",
+            "position": "RB",
+            "player_id": "9509",
+            "number": "7",
+            "news_updated": "1682644810114",
+            "last_name": "Robinson",
+            "injury_status": "",
+            "first_name": "Bijan"
+        },
+        "is_keeper": null,
+        "draft_slot": 1,
+        "draft_id": "917263521006592001"
+    },
+    {
+        "round": 1,
+        "roster_id": 5,
+        "player_id": "9228",
+        "picked_by": "833594957678886912",
+        "pick_no": 2,
+        "metadata": {
+            "years_exp": "0",
+            "team": "CAR",
+            "status": "Active",
+            "sport": "nfl",
+            "position": "QB",
+            "player_id": "9228",
+            "number": "9",
+            "news_updated": "1682967935354",
+            "last_name": "Young",
+            "injury_status": "",
+            "first_name": "Bryce"
+        },
+        "is_keeper": null,
+        "draft_slot": 2,
+        "draft_id": "917263521006592001"
+    },...
+```
+
+So now I understand what my schema is, I will write my schema definition below. Look at `draft_picks_schema` so you can see how to define a schema for a Spark DataFrame:
+```
+# In order use dbutils.fs.head, we must make sure our file isn't too large.
+# We use 2023's draft_picks.json since the start-up draft file from 2022 would've been too large.
+draft_picks_as_string = dbutils.fs.head("/mnt/sleeperprojectdl/raw/2023/draft_picks.json")
+draft_picks_as_json = json.loads(draft_picks_as_string)
+
+metadata_schema = StructType([StructField(item, StringType(), True) for item in draft_picks_as_json[0]['metadata'].keys()]
+    + [StructField('amount', StringType(), True)])
+
+draft_picks_schema = StructType([
+    StructField('round', IntegerType(), True),
+    StructField('roster_id', IntegerType(), True),
+    StructField('player_id', StringType(), True),
+    StructField('picked_by', DecimalType(38,0), True),
+    StructField('pick_no', IntegerType(), True),
+    StructField('metadata', metadata_schema, True),
+    StructField('is_keeper', BooleanType(), True),
+    StructField('draft_slot', IntegerType(), True),
+    StructField('draft_id', DecimalType(38,0), True)
+])
+```
+
+Notice how I have a nested dictionary of additional fields under "metadata". I decided that instead of tediously writing each field for "metadata" for `metadata_schema`, I used a list comprehension to dynamically create a list of StructField objects. This is done based on the keys found in the "metadata" field of a single element in `draft_picks_as_json`. This time-saving technique can be found in other notebooks of the ingestion folder.
+
+The next step is to actually read the JSON file into a Spark DataFrame. In the "raw" container, it is important to remember that there are folders for each season, so I will need to read multiple draft_picks.json files. I use a for loop once again to do this process.
+```
+for season in ALL_SEASONS.keys():
+    # Set the mount point as our file path; use formatted string to dynamically set the season
+    file_path = f"/mnt/sleeperprojectdl/raw/{season}/draft_picks.json"
+
+    # Read the json file and apply the schema
+    draft_picks_df = spark.read.json(file_path, schema=draft_picks_schema, multiLine=True)
+
+    # Clean and write the data to the processed folder
+    draft_picks_final_df = draft_picks_df.select(
+            col('pick_no'),
+            col('player_id'),
+            col('picked_by'),
+            col('metadata.amount')
+        ) \
+        .withColumn('season', lit(season)) \
+        .withColumn('player_id', col('player_id').cast('integer')) \
+        .withColumn('amount', col('amount').cast('integer')) \
+        .withColumn('ingestion_date', current_timestamp())
+
+    draft_picks_final_df.write.mode('append').parquet(f"/mnt/sleeperprojectdl/processed/draft_picks")
+```
+
+In the final DataFrame, I only select relevant columns I want in my draft picks table and did some type conversions. I also added an ingestion date to indicate when the data was processed. When I finally wrote it to the "processed" container, I made sure to set the mode to "append" because I want all my draft picks data in one single parquet file.
+
+#### Ingesting Matchups
+
+
 ### III. Transformation
 ### IV. Load
 ## Phase Three: Analyzing the Data
