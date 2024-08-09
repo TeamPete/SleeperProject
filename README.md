@@ -7,7 +7,7 @@
 ## Project Overview
 This project focuses on working within a comprehensive data architecture to leverage the Sleeper API for extracting and analyzing fantasy football data. The primary goal is to design a robust data architecture that supports the exploratory analysis of player statistics, team performances, and league transactions. More importantly, this analysis aims to evaluate the potential benefits of implementing a TE premium, in the interest of enhancing competitive balance and enriching the overall fantasy football experience for future seasons. 
 
-In addition, this project demonstrates key data engineering concepts such as data integration, ETL processes (ELT in this case), data governance, and data security. It showcases my ability to design efficient data pipelines, manage data storage, and ensure data quality and accessibility. The insights derived from the analysis not only inform strategic decisions and league set-up recommendations for those in my fantasy football league but also highlight my proficiency in working within a complex data environment.
+In addition, this project demonstrates key data engineering concepts such as data integration, ETL processes, data governance, and data security. It showcases my ability to design efficient data pipelines, manage data storage, and ensure data quality and accessibility. The insights derived from the analysis not only inform strategic decisions and league set-up recommendations for those in my fantasy football league but also highlight my proficiency in working within a complex data environment.
 
 ## Technologies Used
 <img src="https://github.com/user-attachments/assets/ee5ba8ed-1e07-48c4-9df4-6c905d83168a" alt="python-sql-tableau" align="right" style="margin-right: 10px;" width="180">
@@ -25,14 +25,14 @@ For more information about this API, check out the [Sleeper API documentation](h
 
 ## Understanding our Pipeline
 ### Overview of the Architecture
-An overwhelming majority of our ELT process will be done on Azure Databricks, an Apache Spark-based analytics platform optimized for Microsoft Azure. It's an amazing environment for teams of data engineers, data analysts, and data scientists to collaborate on Big Data projects. I chose Databricks to become familiar with a Big Data analytics platform and for its substantial market share as a primary tool in organizations' data architecture. Additionally, I wanted to familiarize myself with Microsoft Azure services, a worthwhile venture as more businesses and organizations transition to a cloud ecosystem.
+An overwhelming majority of our ETL process will be done on Azure Databricks, an Apache Spark-based analytics platform optimized for Microsoft Azure. It's an amazing environment for teams of data engineers, data analysts, and data scientists to collaborate on Big Data projects. I chose Databricks to become familiar with a Big Data analytics platform and for its substantial market share as a primary tool in organizations' data architecture. Additionally, I wanted to familiarize myself with Microsoft Azure services, a worthwhile venture as more businesses and organizations transition to a cloud ecosystem.
 
 One key feature of this pipeline is the use of the "Medallion Architecture". It is a data architecture pattern designed to organize data into layers with increasing levels of refinement and quality. This architecture is particularly beneficial for managing large volumes of data, ensuring data quality, and making data accessible and usable for various analytical purposes. Our data is organized into three main layers are Bronze (raw), Silver (processed), and Gold (presentation). You can learn more about it on the databrick website [here](https://www.databricks.com/glossary/medallion-architecture).
 
 ### Summary of Project Steps
-Our ELT process begins with the Sleeper API. We use Python's requests library to make calls to various endpoints of the API and store its JSON information into the raw container of our Azure Data Lake Storage. Leveraging PySpark, we then process our data through DataFrames. This involves ingesting our JSON files into DataFrames and general data cleaning. More importantly, we store and arrange this processed data (as parquet) in an easy-to-navigate filing system within our processed container. Finally, we make the appropriate transformations for our presentation layer. This involves sorting, aggregating, and even normalization in 3NF.
+Our ETL process begins with the Sleeper API. We use Python's requests library to make calls to various endpoints of the API and store its JSON information into the raw container of our Azure Data Lake Storage. Leveraging PySpark, we then process our data through DataFrames. This involves ingesting our JSON files into DataFrames and general data cleaning. More importantly, we store and arrange this processed data (as parquet) in an easy-to-navigate filing system within our processed container. Finally, we make the appropriate transformations for our presentation layer. This involves sorting, aggregating, and even normalization in 3NF.
 
-In this next phase, we put on our data analyst hat and analyze and visualize our fantasy data. We convert our parquet files from our presentation container into tables that are stored in a database in Databricks' file system. Using SQL, we filter and join relevant information in order to smoothly conduct our analysis. And finally, we use Tableau to visualize our data to communicate our findings effectively to our fellow non-technical fantasy users.
+In this next phase, we put on our data analyst hat and analyze and visualize our fantasy data. We load our parquet files from our presentation container into tables that are stored in a database in Databricks' file system. Using SQL, we filter and join relevant information in order to smoothly conduct our analysis. And finally, we use Tableau to visualize our data to communicate our findings effectively to our fellow non-technical fantasy users.
 
 Here is a data flow diagram that summarizes our pipeline:
 ![SleeperProject-DFD](https://github.com/user-attachments/assets/63760a43-4ee8-419c-9d86-53cf653312ee)
@@ -218,8 +218,8 @@ We have finished! The entire notebook for this can be found [here](https://githu
 
 Our pipeline begins with extraction, which uses the **requests** library to make GET requests to Sleeper's API. We save the responses as JSON files in our "raw" container. The extraction process is divided into two notebooks: one for creating the extraction class, where each method calls a different endpoint of the Sleeper API, and another for creating an instance of this class and executing all necessary methods.
 
-#### Extraction Class
-We begin by writing the __init__ method (constructor) for our extraction class, which accepts `league_id` and `year` as parameters. This method also initializes additional attributes, such as `max_week` (set to 17) and `draft_id`. These attributes are crucial because they will be included in the URLs of the API endpoints we will be using.
+#### The `SeasonExtractor` Class
+We begin by writing the __init__ method (constructor) for our `SeasonExtractor` class, which accepts `league_id` and `year` as parameters. This method also initializes additional attributes, such as `max_week` (set to 17) and `draft_id`. These attributes are crucial because they will be included in the URLs of the API endpoints we will be using.
 
 ```
 class SeasonExtractor:
@@ -272,10 +272,111 @@ def extract_matchups(self):
 
 As you can see, we save the file as JSON using the mount point we had created.
 
-I won't go over every method, but the rest of the methods extract basic league information, transactions, rosters, users, and draft results. If you want to see the full code of the extraction class and how I define each method, click [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/season_extractor_class.ipynb).
+I won't go over every method, but the rest of the methods extract basic league information, transactions, rosters, users, and draft results. If you want to see the full code of the `SeasonExtractor` class and how I define each method, click [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/season_extractor_class.ipynb).
 
-#### Execute Extraction
-In this `extraction_main` notebook, I execute the extraction. 
+#### Executing Extraction
+In this `extraction_main` notebook, we define the function `ExtractSleeperAPI()` that passes in an instance of the `SeasonExtractor` class and calls all the methods we just recently defined.
+```
+def ExtractSleeperAPI(instance: SeasonExtractor):
+    print(f"Initiating extraction for the {instance.year} season...")
 
+    instance.extract_league_info()
+    instance.extract_rosters()
+    instance.extract_users()
+    instance.extract_matchups()
+    instance.extract_transactions()
+    instance.extract_draft_picks()
+
+    print(f"\nExtraction for the {instance.year} season completed.")
+```
+In a for loop that iterates through the `ALL_SEASONS` global variable, we will call that function for each `league_id` possible. Remember, one instance of our `SeasonExtractor` class only extracts data for one `league_id` or season.
+
+```
+for season, league_id in ALL_SEASONS.items():
+    instance = SeasonExtractor(league_id, season)
+    ExtractSleeperAPI(instance)
+```
+
+It's important to remember to use the `%run` magic command in the beginning of this notebook to reference `ALL_SEASONS` and the `SeasonExtractor` class defined in other notebooks. See the full code of this notebook [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/extraction_main.ipynb).
+
+#### Extracting NFL Player Data
+In this Python script I wrote in VSCode, I simply retrieve, process, and filter NFL player data from the Sleeper API. I save this data in a csv file and uploaded it onto the data lake storage in the "raw" container. I wanted to do this in my Databricks environment, but for some reason I couldn't run the extraction with this particular Sleeper API endpoint. I suspect it had to do with the limitations of the cluster I had attached, so I moved this part of the process onto my IDE. Despite this challenge, I'll be glad to demonstrate my knowledge of pandas and working with a csv file format.
+
+The function `get_playerinfo()` is defined to fetch NFL player data from the Sleeper API. The data is returned as a Python dictionary. If the API request fails, the function handles the exception and returns an empty dictionary.
+```
+def get_playerinfo():
+    url = "https://api.sleeper.app/v1/players/nfl"
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"There was an error when fetching roster data from your league: {e}")
+        return {}
+```
+
+The function `filter_playerinfo()` function processes the fetched data, filtering it to include only offensive players (quarterbacks, wide receivers, tight ends, and running backs). It selects relevant player attributes such as ID, name, position, team, experience, age, height, weight, college, and status. The filtered data is returned as a Pandas DataFrame.
+```
+def filter_playerinfo(data):
+    players = []
+    offense = ['QB', 'WR', 'TE', 'RB']
+
+    # We only want to select the relevant fields
+    for key, value in data.items():
+        try:
+            # Only filter for fantasy relevant players
+            if value.get('position') in offense:
+                players.append({
+                    'player_id': int(key),
+                    'name': value.get('full_name'),
+                    'position': value.get('position'),
+                    'team': value.get('team'),
+                    'exp': value.get('years_exp'),
+                    'age': value.get('age'),
+                    'height': value.get('height'),
+                    'weight': value.get('weight'),
+                    'college': value.get('college'),
+                    'status': value.get('status')
+                })
+
+        except (ValueError, TypeError) as e:
+            # Handle conversion error or missing value
+            print(f"Error processing player {key}: {e}")
+
+    return pd.DataFrame(players)
+```
+
+The `convert_to_inches()` function converts a player's height from feet and inches (e.g., 6'2") into total inches. It uses regular expressions to parse the height format and calculates the total height in inches. If the height is not in the expected format, an error is raised.
+```
+def convert_to_inches(height):
+    if "'" in height:
+        # If height is in feet and inches format, create match object
+        match_obj = re.match(r"(\d+)'(\d+)\"", height)
+
+        if match_obj:
+            feet = int(match_obj.group(1))
+            inches = int(match_obj.group(2))
+            return feet * 12 + inches
+        else:
+            raise ValueError("Invalid height format")
+    else:
+        return height
+```
+
+We bring all those functions together by calling `get_playerinfo()` to fetch the player data and then filter it using `filter_playerinfo()`. The height of each player is then converted to inches using the `convert_to_inches()` function. Finally, the processed data is saved as a CSV file named nfl_players.csv.
+```
+response_as_dict = get_playerinfo()
+players_df = filter_playerinfo(response_as_dict)
+players_df['height'] = players_df['height'].apply(convert_to_inches)
+
+players_df.to_csv("nfl_players.csv", index=False)
+```
+
+To access this script, you can find it [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/sleeper_player_info.py).
+
+### II. Ingestion
+### III. Transformation
+### IV. Load
 ## Phase Three: Analyzing the Data
-## Our Findings and Conclusion
+## Conclusion
