@@ -376,6 +376,15 @@ players_df.to_csv("nfl_players.csv", index=False)
 To access this script, you can find it [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/sleeper_player_info.py).
 
 ### II. Ingestion
+<img src="https://github.com/user-attachments/assets/81f4b922-f6a7-4fdc-a423-3d6a347875f5" alt="sleeper-logo" align="right" style="margin-right: 10px;" width="200">
+
+In the ingestion folder, each notebook will be responsible for handling a file or a set of files depending on how we want to organize our data. We will finally leverage Spark to read and clean our data in this section. The basic approach will be the same across all notebooks in this folder and is as follows:
+1. Import the required libraries
+2. Define the schema
+3. Read the file as a DataFrame
+4. Clean the data
+5. Save the data to our "processed" container as a parquet file
+
 ### III. Transformation
 ### IV. Load
 ## Phase Three: Analyzing the Data
