@@ -375,7 +375,7 @@ players_df.to_csv("nfl_players.csv", index=False)
 
 To access this script, you can find it [here](https://github.com/TeamPete/SleeperProject/blob/main/1_extraction/sleeper_player_info.py).
 
-### II. Ingestion
+### II. Ingestion and Transformation
 <img src="https://github.com/user-attachments/assets/81f4b922-f6a7-4fdc-a423-3d6a347875f5" alt="sleeper-logo" align="right" style="margin-right: 10px;" width="200">
 
 In the ingestion folder, each notebook will be responsible for handling a file or a set of files depending on how we want to organize our data. We will finally leverage Spark to read and clean our data in this section. The basic approach will be the same across all notebooks in this folder and is as follows:
@@ -577,14 +577,25 @@ final_df = final_df.select(
         )
 ```
 
-Finally, we write this DataFrame as a Parquet file to our "processed" container, appending the newly processed DataFrames to the file with each iteration of the loop.
+Finally, we write this DataFrame as a parquet file to our "processed" container, appending the newly processed DataFrames to the file with each iteration of the loop.
 ```
 final_df.write.mode('append').parquet(f'/mnt/sleeperprojectdl/processed/player_performances')
 ```
 
-Here is a preview of the entire DataFrame of our processed data:
+Here is a preview of the final DataFrame of our processed data:
 ![Screenshot 2024-08-14 135808](https://github.com/user-attachments/assets/e72352c7-a20a-4549-9370-4e7584fdd35a)
-### III. Transformation
+### III. Fine Tuning and Normalizing Transactions
+<img src="https://github.com/user-attachments/assets/7ba84a85-f955-484d-bbd1-4f21dd6f5690" alt="processed-container" align="right" style="margin-right: 10px;" width="120">
+
+This is where I perform additional transformations and an extensive normalization process on the transactions data before writing the analysis-ready DataFrames to the "presentation" container. You can refer the transformation folder (located (here)[]) for this section. Also refer to the screenshot on the right to see the parquet files we'll be working with from our "processed" container.
+
+For notebooks like (draft_picks)[] and (nfl_players)[] in our transformation folder, I either renamed columns, sorted the data, or in some cases, made no changes and directly wrote to the "presentation" container. 
+
+The main challenge was normalizing the transactions data. As we open up the transactions parquet file as a DataFrame, we see a lot of map and array data types similar to the raw matchups data we processed previously:
+![Screenshot 2024-08-14 143424](https://github.com/user-attachments/assets/0a7add96-787e-4a73-924b-5727e5642cce)
+
+I broke this table down into four relational tables: 1) A central transactions table, 2) a consenters, 3) a roster actions table, and 4) a traded picks table.
+
 ### IV. Load
 ## Phase Three: Analyzing the Data
 ## Conclusion
