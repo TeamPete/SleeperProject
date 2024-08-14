@@ -385,7 +385,7 @@ In the ingestion folder, each notebook will be responsible for handling a file o
 4. Clean the data
 5. Save the data to our "processed" container as a parquet file
 
-I will go over two notebooks to demonstrate this process. For the rest of the notebooks in the ingestion folder, you can click here.
+I will go over two notebooks to demonstrate this process: [draft_picks](https://github.com/TeamPete/SleeperProject/blob/main/2_ingestion/draft_picks.ipynb) and [player_performances](https://github.com/TeamPete/SleeperProject/blob/main/2_ingestion/player_performances.ipynb). For the rest of the notebooks in the ingestion folder, you can click [here](https://github.com/TeamPete/SleeperProject/tree/main/2_ingestion).
 
 #### Ingesting Draft Picks
 Let's look at the "draft_picks" notebook. To start off, we import the data types from the `pyspark.sql.types` module. This module provides classes that define the data types used in Spark DataFrames. You use these classes when you need to define or enforce a specific schema for your DataFrame, ensuring that each column has a specific data type.
@@ -497,11 +497,93 @@ for season in ALL_SEASONS.keys():
     draft_picks_final_df.write.mode('append').parquet(f"/mnt/sleeperprojectdl/processed/draft_picks")
 ```
 
-In the final DataFrame, I only select relevant columns I want in my draft picks table and did some type conversions. I also added an ingestion date to indicate when the data was processed. When I finally wrote it to the "processed" container, I made sure to set the mode to "append" because I want all my draft picks data in one single parquet file.
+In the final DataFrame, I only select relevant columns I want in my draft picks table and did some type conversions. I also added an ingestion date to indicate when the data was processed. When I finally wrote it to the "processed" container, I made sure to set the mode to "append" because I want all my draft picks data in one single parquet file. Here is what the final DataFrame looks like once you display it:
+![Screenshot 2024-08-14 124030](https://github.com/user-attachments/assets/b5a31ca1-ddc7-4a02-afb6-55924c0d2a2f)
 
 #### Ingesting Matchups
+The matchup files in our "raw" container are organized by week. While it's possible to ingest all files in a single line of code, doing so prevents us from capturing the specific week as a new column in the dataset, which is why we'll need to use a loop to ingest each file individually.
 
+When importing the necessary libraries again, we introduce the **MapType** and **ArrayType** data types in Spark, which are used to define schemas that include dictionary-like structures and arrays, respectively. Here is how the schema is defined:
+```
+matchups_schema = StructType([
+    StructField("players_points", MapType(StringType(), FloatType()), True),
+    StructField("starters_points", ArrayType(FloatType()), True),
+    StructField("starters", ArrayType(StringType()), True),
+    StructField("matchup_id", IntegerType(), True),
+    StructField("custom_points", FloatType(), True),
+    StructField("roster_id", IntegerType(), True),
+    StructField("players", ArrayType(StringType()), True),
+    StructField("points", FloatType(), True)
+])
+``` 
+Now, let's take a look at a sample week of matchups as a DataFrame:
+![Screenshot 2024-08-14 130809](https://github.com/user-attachments/assets/eae75444-b814-487f-95d4-198e53708a23)
 
+There’s a lot to consider here! We need to determine the structure of our final DataFrame. Should we create multiple final DataFrames, or focus on just one? What data is essential, and what can we omit? I've decided that the goal should be to create a final DataFrame that captures individual player performances, including the week, season, team, and matchup ID. This approach allows us to use aggregations later on to generate a separate matchups table with each team's total points.
+
+I began this process with a nested for loop. By using slicing, I limited the iteration to the 2023 season, as the 2024 season hasn't started yet. The nested for loop then iterates through all the weeks within that season.
+```
+for season in sorted(ALL_SEASONS.keys())[:-1]:
+    for week in range(1, 18):
+```
+
+I then define the file path using a formatted string to dynamically adjust for the season and week. Then, I read the respective file.
+```
+file_path = f'/mnt/sleeperprojectdl/raw/{season}/matchups/week_{week}.json'
+matchups_df = spark.read.json(file_path, schema=matchups_schema, multiLine=True)
+```
+
+The `player_points` column contains dictionaries, which can be cumbersome to work with. To simplify this, I used the **explode** function to transform it into multiple rows while ensuring that `roster_id`, `matchup_id`, `week_num`, and `season` were captured alongside each entry. This is all done in a DataFrame called `players_df`. In another DataFrame called `is_starters_df`, I also exploded the `starters` and added the `is_starter` boolean column to indicate whether the player was a starter (I set the values all to True since all the rows here were starters).
+
+Finally, I used a left join to join both `players_df` and `is_starters_df` on `player_id`.
+```
+players_df = matchups_df.select(
+                explode('players_points').alias('player_id', 'points'),
+                col('roster_id'),
+                col('matchup_id')
+            ) \
+            .withColumn('week_num', lit(week)) \
+            .withColumn('season', lit(season))
+
+is_starters_df = matchups_df.select(
+        explode('starters').alias('player_id')
+    ) \
+    .withColumn('is_starter', lit(True))
+
+joined_df = players_df.join(is_starters_df, on='player_id', how='left')
+```
+
+In `final_df`, I replaced `NULL` values in the `is_starter` column with `False`. I also added an ingestion date and reordered the columns to make the DataFrame more readable.
+```
+final_df = joined_df.withColumn(
+                'is_starter',
+                when(col('is_starter').isNull(), lit(False)) \
+                    .otherwise(True)
+            ) \
+            .withColumn('ingestion_date', current_timestamp())
+
+final_df = final_df.select(
+        col('season'),
+        col('week_num'),
+        col('matchup_id'),
+        col('roster_id'),
+        col('player_id'),
+        col('points'),
+        col('is_starter'),
+        col('ingestion_date')
+    ) \
+    .orderBy(
+        col('season'), col('week_num'), col('matchup_id'), col('roster_id'), col('is_starter').desc(), col('points').desc()
+        )
+```
+
+Finally, we write this DataFrame as a Parquet file to our "processed" container, appending the newly processed DataFrames to the file with each iteration of the loop.
+```
+final_df.write.mode('append').parquet(f'/mnt/sleeperprojectdl/processed/player_performances')
+```
+
+Here is a preview of the entire DataFrame of our processed data:
+![Screenshot 2024-08-14 135808](https://github.com/user-attachments/assets/e72352c7-a20a-4549-9370-4e7584fdd35a)
 ### III. Transformation
 ### IV. Load
 ## Phase Three: Analyzing the Data
