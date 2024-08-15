@@ -704,7 +704,7 @@ draft_picks_final_df.write.mode("overwrite").parquet("/mnt/sleeperprojectdl/pres
 Here is a preview of the traded draft picks table:
 ![Screenshot 2024-08-15 155026](https://github.com/user-attachments/assets/2954f928-0c01-4952-8e03-12a57d19da1f)
 
-We are done with normalization! For the full notebook, click (here)[https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/transactions(1).ipynb].
+We are done with normalization! For the full notebook, click [here](https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/transactions(1).ipynb).
 
 ### IV. Load
 ## Phase Three: Analyzing the Data
