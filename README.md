@@ -587,14 +587,124 @@ Here is a preview of the final DataFrame of our processed data:
 ### III. Fine Tuning and Normalizing Transactions
 <img src="https://github.com/user-attachments/assets/7ba84a85-f955-484d-bbd1-4f21dd6f5690" alt="processed-container" align="right" style="margin-right: 10px;" width="120">
 
-This is where I perform additional transformations and an extensive normalization process on the transactions data before writing the analysis-ready DataFrames to the "presentation" container. You can refer the transformation folder (located (here)[]) for this section. Also refer to the screenshot on the right to see the parquet files we'll be working with from our "processed" container.
+This is where I perform additional transformations and an extensive normalization process on the transactions data before writing the analysis-ready DataFrames to the "presentation" container. You can refer the transformation folder (located [here](https://github.com/TeamPete/SleeperProject/tree/main/3_transformation)) for this section. Also refer to the screenshot on the right to see the parquet files we'll be working with from our "processed" container.
 
-For notebooks like (draft_picks)[] and (nfl_players)[] in our transformation folder, I either renamed columns, sorted the data, or in some cases, made no changes and directly wrote to the "presentation" container. 
+For notebooks like [draft_picks](https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/draft_picks(1).ipynb) and [nfl_players](https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/nfl%20players.ipynb) in our transformation folder, I either renamed columns, sorted the data, or in some cases, made no changes and directly wrote to the "presentation" container. 
 
 The main challenge was normalizing the transactions data. As we open up the transactions parquet file as a DataFrame, we see a lot of map and array data types similar to the raw matchups data we processed previously:
 ![Screenshot 2024-08-14 143424](https://github.com/user-attachments/assets/0a7add96-787e-4a73-924b-5727e5642cce)
 
-I broke this table down into four relational tables: 1) A central transactions table, 2) a consenters, 3) a roster actions table, and 4) a traded picks table.
+I broke this table down into four relational tables: 1) A central transactions table, 2) a consenters table, 3) a roster actions table, and 4) a traded picks table. This kind of normalization will hopefully simplify queries and improve data integrity. 
+
+#### Creating the Transactions Table
+In this DataFrame, I kept what I thought were the essential columns you should find in a transactions table. I couldn't imagine these columns in a separate table. These columns include `transaction_id` (our primary key), `type`, `created`, etc. I then wrote this DataFrame to our "presentation" container.
+```
+final_transactions_df = transactions_transformed_df.select(
+        col("transaction_id"),
+        col("type"),
+        col("created"),
+        col("status_updated").alias("completed"),
+        col("waiver_bid"),
+        col("week"),
+        col("season"),
+        col("ingestion_date")
+    ) \
+    .orderBy("completed") \
+    .withColumn("type", when(col("type") == "free_agent", lit("free agent")).otherwise(col("type")))
+
+final_transactions_df.write.mode("overwrite").parquet("/mnt/sleeperprojectdl/presentation/transactions")
+```
+
+Here is a preview of the transactions table:
+![Screenshot 2024-08-15 152510](https://github.com/user-attachments/assets/eac6f9d5-cfcb-4a1b-9d89-4975f0dd4dab)
+
+#### Creating the Consenters Table
+This table will identify the teams that took part in a transaction. Many transactions only had one consenter (i.e. free agent signing) and others had multiple (i.e. trades). Part of normalization is to ensure atomic values (single numbers). Since the consenters column contains arrays, we want to explode the roster ID's in each entry.
+```
+consenters_df = transactions_transformed_df.select(
+        col("transaction_id"),
+        explode(col("roster_ids")).alias("roster_id")
+
+consenters_df.write.mode("overwrite").parquet("/mnt/sleeperprojectdl/presentation/consenters")
+```
+
+Here is a preview of the consenters table:
+![Screenshot 2024-08-15 152651](https://github.com/user-attachments/assets/c27941a7-fc22-4d13-92fd-1c4ef28e5d0e)
+
+#### Creating the Roster Actions Table
+This table will consolidate the transaction information into a single column that indicates whether a player was "added" or "dropped." In the original transactions DataFrame, the `adds` and `drops` columns are separate and contain dictionaries where the keys represent player IDs and the values represent roster IDs. We will want to explode these values and put them together in a single column.
+```
+# Exploding "adds" column
+adds_df = transactions_transformed_df.select(
+        col("transaction_id"),
+        explode(col("adds"))
+    ) \
+    .withColumnsRenamed({
+        "key": "player_id",
+        "value": "roster_id"
+    }) \
+    .withColumn("action", lit("add"))
+
+rearranged_adds_df = adds_df.select(
+        col("transaction_id"),
+        col("action"),
+        col("roster_id"),
+        col("player_id")
+    ) \
+    .orderBy("transaction_id")
+
+# Exploding "drops" column
+drops_df = transactions_transformed_df.select(
+        col("transaction_id"),
+        explode(col("drops"))
+    ) \
+    .withColumnsRenamed({
+        "key": "player_id",
+        "value": "roster_id"
+    }) \
+    .withColumn("action", lit("drop"))
+
+rearranged_drops_df = drops_df.select(
+        col("transaction_id"),
+        col("action"),
+        col("roster_id"),
+        col("player_id")
+    ) \
+    .orderBy("transaction_id")
+```
+
+In the code above, we exploded the "adds" and "drops" in separate DataFrames and then created an `action` column. We will then concatenate these two DataFrames.
+```
+rearranged_adds_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentation/roster_actions")
+rearranged_drops_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentation/roster_actions")
+```
+
+I could've concatenated before writing, but using append should suffice. Here a preview of the roster actions table:
+![Screenshot 2024-08-15 154435](https://github.com/user-attachments/assets/1ea6eae3-ae61-409f-ae6c-e0d154460e67)
+
+#### Creating the Traded Draft Picks Table
+We explode the `draft_picks` column and find out that it is an array of picks as dictionaries. We only select the relevant columns within the dictionary, such as `previous_owner_id`, `owner_id`, and the `round` the pick belongs to.
+```
+draft_picks_df = transactions_transformed_df.select(
+        col("transaction_id"),
+        explode(col("draft_picks"))
+    )
+
+draft_picks_final_df = draft_picks_df.select(
+    col("transaction_id"),
+    col("col.previous_owner_id").alias("previous_roster_id"),
+    col("col.owner_id").alias("new_roster_id"),
+    col("col.season"),
+    col("col.round")
+)
+
+draft_picks_final_df.write.mode("overwrite").parquet("/mnt/sleeperprojectdl/presentation/traded_picks")
+```
+
+Here is a preview of the traded draft picks table:
+![Screenshot 2024-08-15 155026](https://github.com/user-attachments/assets/2954f928-0c01-4952-8e03-12a57d19da1f)
+
+We are done with normalization! For the full notebook, click (here)[https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/transactions(1).ipynb].
 
 ### IV. Load
 ## Phase Three: Analyzing the Data
