@@ -4,6 +4,17 @@
 *Fantasy football allows NFL fans to thrive on the thrill of strategic decision-making and enriches our NFL viewing experience. However, a recurring issue in not just my league but other leagues is the underwhelming impact of tight ends on the overall scoring system. In our setup, tight ends seem to contribute minimally compared to other positions (unless you have someone like Travis Kelce), leading to less excitement and strategic depth in managing this position. This imbalance diminishes the overall fantasy football experience, as participants feel less incentive to invest time and resources in drafting or trading for tight ends. In this project, I hope to make an informed recommendation to our league commissioner on whether a "TE premium" scoring system would be beneficial.*
 <div style="clear: both;"></div>
 
+## Table of Contents
+#### 1. [Project Overview](#project-overview)
+#### 2. [Technologies Used](#technologies-used)
+#### 3. [The Source of our Data](#the-source-of-our-data)
+#### 4. [Understanding our Pipeline](#understanding-our-pipeline)
+#### 5. [Phase One: Project Set-Up](#phase-one-project-set-up)
+- [Creating our Resources in the Azure Portal](#i-creating-our-resources-in-the-azure-portal)
+- [Getting Started in Databricks: The Set-Up Folder](#ii-getting-started-in-databricks-the-set-up-folder)
+#### 6. [Phase Two: Designing our Pipeline]
+#### 7. [Phase Three: Analyzing the Data]
+#### 8. [Conclusion]
 ## Project Overview
 This project focuses on working within a comprehensive data architecture to leverage the Sleeper API for extracting and analyzing fantasy football data. The primary goal is to design a robust data architecture that supports the exploratory analysis of player statistics, team performances, and league transactions. More importantly, this analysis aims to evaluate the potential benefits of implementing a TE premium, in the interest of enhancing competitive balance and enriching the overall fantasy football experience for future seasons. 
 
