@@ -9,12 +9,19 @@
 #### 2. [Technologies Used](#technologies-used)
 #### 3. [The Source of our Data](#the-source-of-our-data)
 #### 4. [Understanding our Pipeline](#understanding-our-pipeline)
+- [Overview of the Architecture](#overview-of-the-architecture)
+- [Summary of Project Steps](#summary-of-project-steps)
 #### 5. [Phase One: Project Set-Up](#phase-one-project-set-up)
 - [Creating our Resources in the Azure Portal](#i-creating-our-resources-in-the-azure-portal)
 - [Getting Started in Databricks: The Set-Up Folder](#ii-getting-started-in-databricks-the-set-up-folder)
-#### 6. [Phase Two: Designing our Pipeline]
-#### 7. [Phase Three: Analyzing the Data]
-#### 8. [Conclusion]
+#### 6. [Phase Two: Designing our Pipeline](#phase-two-designing-our-pipeline)
+- [Extraction](#i-extraction)
+- [Ingestion and Transformation](#ii-ingestion-and-transformation)
+- [Fine Tuning and Normalizing Transactions](#iii-fine-tuning-and-normalizing-transactions)
+- [Load](#iv-load)
+#### 7. [Phase Three: Analyzing the Data](#phase-three-analyzing-the-data)
+#### 8. [Conclusion](#conclusion)
+
 ## Project Overview
 This project focuses on working within a comprehensive data architecture to leverage the Sleeper API for extracting and analyzing fantasy football data. The primary goal is to design a robust data architecture that supports the exploratory analysis of player statistics, team performances, and league transactions. More importantly, this analysis aims to evaluate the potential benefits of implementing a TE premium, in the interest of enhancing competitive balance and enriching the overall fantasy football experience for future seasons. 
 
