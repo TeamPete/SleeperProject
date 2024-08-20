@@ -679,7 +679,7 @@ rearranged_adds_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentat
 rearranged_drops_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentation/roster_actions")
 ```
 
-I could've concatenated before writing, but using append should suffice. Here a preview of the roster actions table:
+I could've concatenated the two DataFrames before writing, but using append should suffice. Here's a preview of the roster actions table:
 ![Screenshot 2024-08-15 154435](https://github.com/user-attachments/assets/1ea6eae3-ae61-409f-ae6c-e0d154460e67)
 
 #### Creating the Traded Draft Picks Table
@@ -707,5 +707,23 @@ Here is a preview of the traded draft picks table:
 We are done with normalization! For the full notebook, click [here](https://github.com/TeamPete/SleeperProject/blob/main/3_transformation/transactions(1).ipynb).
 
 ### IV. Load
+In Databricks, you can create a "database", which essentially is a logical namespace within the metastore. It groups tables together under a specific name, making it easier to manage and query related tables. We will use this database as a staging area for querying data from our presentation container.
+
+In the "Database Creation" notebook, we create SQL tables with our presentation container:
+```
+for table in dbutils.fs.ls("/mnt/sleeperprojectdl/presentation"):
+    temp_df = spark.read.parquet(table.path)
+    temp_df.write.format('delta').mode('overwrite').saveAsTable(f'sleeper.{table.name[:-1]}')
+```
+
+We use a for loop to iterate through all the mounts linked to our presentation container files, then write the parquet to a SQL table in our database. Here is what the full notebook looks like:
+![Screenshot 2024-08-19 at 10 36 40 PM](https://github.com/user-attachments/assets/fa0f5e3a-2cc5-4adb-b436-2caea83ca97a)
+![Screenshot 2024-08-19 at 10 36 49 PM](https://github.com/user-attachments/assets/23d22b1a-fd71-479f-a427-f60eb0f9cece)
+**I duplicated the player performances table then manually adjusted all starting tight ends' points in 2023 to what it would be with a TE premium. I named this table as "player_scores_te_premium". We use this table for much of our analysis.**
+![Screenshot 2024-08-19 at 10 36 57 PM](https://github.com/user-attachments/assets/8c27d620-e61d-4314-81d3-80c6ecb77d6b)
+
 ## Phase Three: Analyzing the Data
+
+
 ## Conclusion
+
