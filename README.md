@@ -912,6 +912,7 @@ Closest games:
 ![Screenshot 2024-08-20 at 4 50 25 PM](https://github.com/user-attachments/assets/c0aba44a-726d-4e6c-a20f-1b3674eadfbf)
 
 ### Effects of the TE Premium
+#### Distribution of TE Performances
 In this query, I compare the 2023 player performances of the original scoring system to the that of the TE premium.
 ```sql
 WITH c_te AS (
@@ -954,9 +955,27 @@ On Tableau, I plot these values on box plots to compare the distribution of tigh
 
 Right off the bat, we can observe that with the TE premium, there are higher scores for tight ends. There is a higher median and an unpward shift in the overall distribution. Not only that, the spread of scores is larger in the TE Premium system, suggesting that there is more performance variability. The higher outliers with the TE premium can also suggest a potential to score exceptionally high on a weekly basis, which could affect the outcomes of fantasy matchups greatly.
 
+#### Tight Ends Compared to Other Positions
 In an earlier query, we revealed the average contribution as a percentage of total points for a player of each position for a team. We discovered that tight end had the least average contribution. How would this query change with the adjusted scores in a TE premium?
 
-How would the standings change in 2023?
+Without TE Premium (2022 & 2023):
+![Screenshot 2024-08-20 at 5 55 45 PM](https://github.com/user-attachments/assets/2492652e-9d72-488e-85bc-f7344f25eda3)
+
+With TE Premium (2023 only):
+![Screenshot 2024-08-20 at 5 55 34 PM](https://github.com/user-attachments/assets/477649f7-ed8d-44d3-9dfc-debc0821ab83)
+
+We can see that TE jumps to the second highest contributor in teams' points.
+
+#### How would the standings change in 2023?
+Without TE Premium:
+![Screenshot 2024-08-20 at 6 14 29 PM](https://github.com/user-attachments/assets/fefe1395-ad6e-4b81-8999-84c5a43d674f)
+
+With TE Premium:
+![Screenshot 2024-08-20 at 6 16 18 PM](https://github.com/user-attachments/assets/42f69b18-62e4-4d3f-adde-16344f4879b9)
+
+The standings have changed pretty substantially! The one seed didn't belong to ShawnDeWin anymore with kongfutranda taking his place. My team (hwinsane) dropped to the fifth seed and the_kool_guy14 jumped to the fourth seed. Clearly, there were a few matchups where the outcome was changed. With the TE premium in 2023, we would've seen a different playoff bracket and perhaps a different champion/playoff outcomes!
 
 ## Conclusion
+In this study, we examined the impact of the TE premium on tight end performances in 2023. Our findings suggest that implementing a TE premium could lead to more volatile tight end performances in the future. Additionally, we observed that tight ends significantly contributed to team total points, influencing the outcomes of several matchups and altering the 2023 playoff picture.
 
+Based on our analysis, I recommend introducing a TE premium to our league commissioner. Our exploratory analysis revealed that tight ends had the lowest average contribution to team total points. By implementing a TE premium, we can expect the value of tight ends to increase, making them more desirable compared to past seasons. This change will likely influence draft strategies, with tight ends being considered more prominently in future drafts and potentially increasing trade activity. Overall, the introduction of a TE premium will enhance the excitement of our fantasy football league and NFL viewing experience.
