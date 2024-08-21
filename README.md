@@ -110,7 +110,7 @@ At the end of the task, all this information should be stored in a Python dictio
 These will be the league IDs for my Sleeper league, but yours will look different. Let's now create a new notebook in our set-up folder to create the function that does exactly what we just described. Make sure to import the `requests` library, which allows you to send HTTP requests easily.
 
 Here is the function that will complete our tasks:
-```
+```python
 def generate_league_history(current_league_id: int) -> dict:
   if not isinstance(current_league_id, int):
     raise TypeError("current_league_id must be an integer.")
@@ -155,7 +155,7 @@ After attaching the notebook to a cluster, run the code and make sure to print `
 Databricks has a secure storage mechanism for managing sensitive information called the **secret scope**. We must create one and link it with our Key Vault, accessing the credentials. 
 
 When creating a new notebook, our first step is to assign those credentials to our variables. We use the **dbutils** library to access our secret scope.
-```
+```python
 client_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-id')
 tenant_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-tenant-id')
 client_secret = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-secret')
@@ -164,7 +164,7 @@ client_secret = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper
 Afterwards, we must set up our mount point. Microsoft Learn actually shows us how to create a mount point in our notebook. Please refer [here](https://learn.microsoft.com/en-us/azure/databricks/dbfs/mounts) to see how to create a mount point.
 
 The first step is to set up the Spark configuration.
-```
+```python
 configs = {"fs.azure.account.auth.type": "OAuth",
           "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
           "fs.azure.account.oauth2.client.id": client_id,
@@ -173,7 +173,7 @@ configs = {"fs.azure.account.auth.type": "OAuth",
 ```
 
 Then use **dbutils** to mount the container.
-```
+```python
 # Mount the storage account container
 dbutils.fs.mount(
     source = f"abfss://{<container_name>}@{<storage_account>}.dfs.core.windows.net/",
@@ -184,7 +184,7 @@ dbutils.fs.mount(
 For example, if we mounted our "raw" container, our mount point would be "/mnt/sleeperprojectdl/raw".
 
 In our notebook, we encapsulate this process in a function and use a for loop to iterate through a list of container names, mounting each container in turn. 
-```
+```python
 def mount_adls(storage_account, container_name):
     # Get secrets from Azure Key Vault
     client_id = dbutils.secrets.get(scope= 'sleeper-secret-scope', key= 'sleeper-project-client-id')
@@ -221,7 +221,7 @@ def mount_adls(storage_account, container_name):
 In addition, I did some conditional checking to see whether the mount point already exists in **dbutils.fs.mounts()** and had messages prepared so that we knew what issues we ran into in case of an unsuccessful mount.
 
 Now, we just need to mount each of our containers.
-```
+```python
 # Mounting containers
 storage_account = 'sleeperprojectdl'
 containers_for_project = ['raw', 'processed', 'presentation']
@@ -239,7 +239,7 @@ Our pipeline begins with extraction, which uses the **requests** library to make
 #### The `SeasonExtractor` Class
 We begin by writing the __init__ method (constructor) for our `SeasonExtractor` class, which accepts `league_id` and `year` as parameters. This method also initializes additional attributes, such as `max_week` (set to 17) and `draft_id`. These attributes are crucial because they will be included in the URLs of the API endpoints we will be using.
 
-```
+```python
 class SeasonExtractor:
     def __init__(self, league_id: int, year: int):
         current_year = datetime.now().year
@@ -269,7 +269,7 @@ class SeasonExtractor:
 In this __init__ method, I've created checks to enforce the integer type of `league_id` and a valid `year`. Additionally, we make a call to the Sleeper API. This particular URL gives us basic information of a specific league. We will want to find the `draft_id` since we will need it.
 
 Throughout the class notebook, I define methods for each endpoint and store the response as JSON in the "raw" container. In the example below, I am getting matchup information. In this particular URL however, I must specify which week. To get matchups for all the weeks, I use a for loop to iterate through all possible weeks, making a different call at each turn.
-```
+```python
 def extract_matchups(self):
     print(f"\nExtracting {self.year} matchups...")
 
@@ -294,7 +294,7 @@ I won't go over every method, but the rest of the methods extract basic league i
 
 #### Executing Extraction
 In this `extraction_main` notebook, we define the function `ExtractSleeperAPI()` that passes in an instance of the `SeasonExtractor` class and calls all the methods we just recently defined.
-```
+```python
 def ExtractSleeperAPI(instance: SeasonExtractor):
     print(f"Initiating extraction for the {instance.year} season...")
 
@@ -309,7 +309,7 @@ def ExtractSleeperAPI(instance: SeasonExtractor):
 ```
 In a for loop that iterates through the `ALL_SEASONS` global variable, we will call that function for each `league_id` possible. Remember, one instance of our `SeasonExtractor` class only extracts data for one `league_id` or season.
 
-```
+```python
 for season, league_id in ALL_SEASONS.items():
     instance = SeasonExtractor(league_id, season)
     ExtractSleeperAPI(instance)
@@ -321,7 +321,7 @@ It's important to remember to use the `%run` magic command in the beginning of t
 In this Python script I wrote in VSCode, I simply retrieve, process, and filter NFL player data from the Sleeper API. I save this data in a csv file and uploaded it onto the data lake storage in the "raw" container. I wanted to do this in my Databricks environment, but for some reason I couldn't run the extraction with this particular Sleeper API endpoint. I suspect it had to do with the limitations of the cluster I had attached, so I moved this part of the process onto my IDE. Despite this challenge, I'll be glad to demonstrate my knowledge of pandas and working with a csv file format.
 
 The function `get_playerinfo()` is defined to fetch NFL player data from the Sleeper API. The data is returned as a Python dictionary. If the API request fails, the function handles the exception and returns an empty dictionary.
-```
+```python
 def get_playerinfo():
     url = "https://api.sleeper.app/v1/players/nfl"
 
@@ -335,7 +335,7 @@ def get_playerinfo():
 ```
 
 The function `filter_playerinfo()` function processes the fetched data, filtering it to include only offensive players (quarterbacks, wide receivers, tight ends, and running backs). It selects relevant player attributes such as ID, name, position, team, experience, age, height, weight, college, and status. The filtered data is returned as a Pandas DataFrame.
-```
+```python
 def filter_playerinfo(data):
     players = []
     offense = ['QB', 'WR', 'TE', 'RB']
@@ -366,7 +366,7 @@ def filter_playerinfo(data):
 ```
 
 The `convert_to_inches()` function converts a player's height from feet and inches (e.g., 6'2") into total inches. It uses regular expressions to parse the height format and calculates the total height in inches. If the height is not in the expected format, an error is raised.
-```
+```python
 def convert_to_inches(height):
     if "'" in height:
         # If height is in feet and inches format, create match object
@@ -383,7 +383,7 @@ def convert_to_inches(height):
 ```
 
 We bring all those functions together by calling `get_playerinfo()` to fetch the player data and then filter it using `filter_playerinfo()`. The height of each player is then converted to inches using the `convert_to_inches()` function. Finally, the processed data is saved as a CSV file named nfl_players.csv.
-```
+```python
 response_as_dict = get_playerinfo()
 players_df = filter_playerinfo(response_as_dict)
 players_df['height'] = players_df['height'].apply(convert_to_inches)
@@ -467,7 +467,7 @@ The next step is to observe the "draft_picks" JSON file from my "raw" container.
 ```
 
 So now I understand what my schema is, I will write my schema definition below. Look at `draft_picks_schema` so you can see how to define a schema for a Spark DataFrame:
-```
+```python
 # In order use dbutils.fs.head, we must make sure our file isn't too large.
 # We use 2023's draft_picks.json since the start-up draft file from 2022 would've been too large.
 draft_picks_as_string = dbutils.fs.head("/mnt/sleeperprojectdl/raw/2023/draft_picks.json")
@@ -492,7 +492,7 @@ draft_picks_schema = StructType([
 Notice how I have a nested dictionary of additional fields under "metadata". I decided that instead of tediously writing each field for "metadata" for `metadata_schema`, I used a list comprehension to dynamically create a list of StructField objects. This is done based on the keys found in the "metadata" field of a single element in `draft_picks_as_json`. This time-saving technique can be found in other notebooks of the ingestion folder.
 
 The next step is to actually read the JSON file into a Spark DataFrame. In the "raw" container, it is important to remember that there are folders for each season, so I will need to read multiple draft_picks.json files. I use a for loop once again to do this process.
-```
+```python
 for season in ALL_SEASONS.keys():
     # Set the mount point as our file path; use formatted string to dynamically set the season
     file_path = f"/mnt/sleeperprojectdl/raw/{season}/draft_picks.json"
@@ -522,7 +522,7 @@ In the final DataFrame, I only select relevant columns I want in my draft picks 
 The matchup files in our "raw" container are organized by week. While it's possible to ingest all files in a single line of code, doing so prevents us from capturing the specific week as a new column in the dataset, which is why we'll need to use a loop to ingest each file individually.
 
 When importing the necessary libraries again, we introduce the **MapType** and **ArrayType** data types in Spark, which are used to define schemas that include dictionary-like structures and arrays, respectively. Here is how the schema is defined:
-```
+```python
 matchups_schema = StructType([
     StructField("players_points", MapType(StringType(), FloatType()), True),
     StructField("starters_points", ArrayType(FloatType()), True),
@@ -540,13 +540,13 @@ Now, let's take a look at a sample week of matchups as a DataFrame:
 There’s a lot to consider here! We need to determine the structure of our final DataFrame. Should we create multiple final DataFrames, or focus on just one? What data is essential, and what can we omit? I've decided that the goal should be to create a final DataFrame that captures individual player performances, including the week, season, team, and matchup ID. This approach allows us to use aggregations later on to generate a separate matchups table with each team's total points.
 
 I began this process with a nested for loop. By using slicing, I limited the iteration to the 2023 season, as the 2024 season hasn't started yet. The nested for loop then iterates through all the weeks within that season.
-```
+```python
 for season in sorted(ALL_SEASONS.keys())[:-1]:
     for week in range(1, 18):
 ```
 
 I then define the file path using a formatted string to dynamically adjust for the season and week. Then, I read the respective file.
-```
+```python
 file_path = f'/mnt/sleeperprojectdl/raw/{season}/matchups/week_{week}.json'
 matchups_df = spark.read.json(file_path, schema=matchups_schema, multiLine=True)
 ```
@@ -554,7 +554,7 @@ matchups_df = spark.read.json(file_path, schema=matchups_schema, multiLine=True)
 The `player_points` column contains dictionaries, which can be cumbersome to work with. To simplify this, I used the **explode** function to transform it into multiple rows while ensuring that `roster_id`, `matchup_id`, `week_num`, and `season` were captured alongside each entry. This is all done in a DataFrame called `players_df`. In another DataFrame called `is_starters_df`, I also exploded the `starters` and added the `is_starter` boolean column to indicate whether the player was a starter (I set the values all to True since all the rows here were starters).
 
 Finally, I used a left join to join both `players_df` and `is_starters_df` on `player_id`.
-```
+```python
 players_df = matchups_df.select(
                 explode('players_points').alias('player_id', 'points'),
                 col('roster_id'),
@@ -572,7 +572,7 @@ joined_df = players_df.join(is_starters_df, on='player_id', how='left')
 ```
 
 In `final_df`, I replaced `NULL` values in the `is_starter` column with `False`. I also added an ingestion date and reordered the columns to make the DataFrame more readable.
-```
+```python
 final_df = joined_df.withColumn(
                 'is_starter',
                 when(col('is_starter').isNull(), lit(False)) \
@@ -596,7 +596,7 @@ final_df = final_df.select(
 ```
 
 Finally, we write this DataFrame as a parquet file to our "processed" container, appending the newly processed DataFrames to the file with each iteration of the loop.
-```
+```python
 final_df.write.mode('append').parquet(f'/mnt/sleeperprojectdl/processed/player_performances')
 ```
 
@@ -616,7 +616,7 @@ I broke this table down into four relational tables: 1) A central transactions t
 
 #### Creating the Transactions Table
 In this DataFrame, I kept what I thought were the essential columns you should find in a transactions table. I couldn't imagine these columns in a separate table. These columns include `transaction_id` (our primary key), `type`, `created`, etc. I then wrote this DataFrame to our "presentation" container.
-```
+```python
 final_transactions_df = transactions_transformed_df.select(
         col("transaction_id"),
         col("type"),
@@ -638,7 +638,7 @@ Here is a preview of the transactions table:
 
 #### Creating the Consenters Table
 This table will identify the teams that took part in a transaction. Many transactions only had one consenter (i.e. free agent signing) and others had multiple (i.e. trades). Part of normalization is to ensure atomic values (single numbers). Since the consenters column contains arrays, we want to explode the roster ID's in each entry.
-```
+```python
 consenters_df = transactions_transformed_df.select(
         col("transaction_id"),
         explode(col("roster_ids")).alias("roster_id")
@@ -651,7 +651,7 @@ Here is a preview of the consenters table:
 
 #### Creating the Roster Actions Table
 This table will consolidate the transaction information into a single column that indicates whether a player was "added" or "dropped." In the original transactions DataFrame, the `adds` and `drops` columns are separate and contain dictionaries where the keys represent player IDs and the values represent roster IDs. We will want to explode these values and put them together in a single column.
-```
+```python
 # Exploding "adds" column
 adds_df = transactions_transformed_df.select(
         col("transaction_id"),
@@ -692,7 +692,7 @@ rearranged_drops_df = drops_df.select(
 ```
 
 In the code above, we exploded the "adds" and "drops" in separate DataFrames and then created an `action` column. We will then concatenate these two DataFrames.
-```
+```python
 rearranged_adds_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentation/roster_actions")
 rearranged_drops_df.write.mode("append").parquet("/mnt/sleeperprojectdl/presentation/roster_actions")
 ```
@@ -702,7 +702,7 @@ I could've concatenated the two DataFrames before writing, but using append shou
 
 #### Creating the Traded Draft Picks Table
 We explode the `draft_picks` column and find out that it is an array of picks as dictionaries. We only select the relevant columns within the dictionary, such as `previous_owner_id`, `owner_id`, and the `round` the pick belongs to.
-```
+```python
 draft_picks_df = transactions_transformed_df.select(
         col("transaction_id"),
         explode(col("draft_picks"))
@@ -728,7 +728,7 @@ We are done with normalization! For the full notebook, click [here](https://gith
 In Databricks, you can create a "database", which essentially is a logical namespace within the metastore. It groups tables together under a specific name, making it easier to manage and query related tables. We will use this database as a staging area for querying data from our presentation container.
 
 In the "Database Creation" notebook, we create SQL tables with our presentation container:
-```
+```python
 for table in dbutils.fs.ls("/mnt/sleeperprojectdl/presentation"):
     temp_df = spark.read.parquet(table.path)
     temp_df.write.format('delta').mode('overwrite').saveAsTable(f'sleeper.{table.name[:-1]}')
@@ -741,7 +741,176 @@ We use a for loop to iterate through all the mounts linked to our presentation c
 ![Screenshot 2024-08-19 at 10 36 57 PM](https://github.com/user-attachments/assets/8c27d620-e61d-4314-81d3-80c6ecb77d6b)
 
 ## Phase Three: Analyzing the Data
+In this section of SQL queries, I will go do some exploratory analysis and look into what the effect of the TE premium would have had on the 2023 season.
 
+### Generating New Tables
+#### Aggregation and Cleaning of the Player Performances Table
+Firstly, I deleted all the bench performances. I didn't think I'd use it to conduct any meaningful analysis.
+```sql
+DELETE FROM
+  player_performances
+WHERE
+  is_starter = FALSE;
+```
 
+To make my player performances table more readable, I joined the `nfl_players` and `users` tables.
+```sql
+CREATE TABLE player_performances_CLEAN AS
+SELECT
+  p.season,
+  p.week_num,
+  p.matchup_id,
+  u.user_name AS team,
+  n.name,
+  n.position,
+  p.points
+FROM
+  player_performances p
+  JOIN nfl_players n ON p.player_id = n.player_id
+  JOIN users u ON p.roster_id = u.roster_id
+  AND p.season = u.season
+ORDER BY
+  p.season,
+  p.week_num,
+  p.matchup_id,
+  u.user_name,
+  p.points DESC;
+```
+
+Here is a preview of the table we aggregated and cleaned:
+![Screenshot 2024-08-20 at 4 19 03 PM](https://github.com/user-attachments/assets/dcaf09db-2a20-46a8-953e-70f68bb43b9e)
+
+#### Generating the Matchups Table
+I generated a matchups table by aggregating the data in our `player_performance sCLEAN` table along with common table expressions.
+```sql
+CREATE TABLE regular_season_matchups AS
+WITH cte AS (
+  SELECT
+    p.season, p.week_num, p.matchup_id, p.team,
+    ROUND(SUM(p.points), 2) AS sum_points
+  FROM
+    player_performances_CLEAN p
+  WHERE
+    p.week_num < 15
+  GROUP BY
+    p.season, p.week_num, p.matchup_id, p.team
+  ORDER BY
+    p.season, p.week_num, p.matchup_id
+)
+SELECT
+  m1.season, m1.week_num, m1.matchup_id,
+  m1.team AS winner,
+  m1.sum_points AS winner_points,
+  m2.team AS loser,
+  m2.sum_points AS loser_points
+FROM
+  cte m1, cte m2
+WHERE
+  m1.season = m2.season
+  AND m1.week_num = m2.week_num
+  AND m1.matchup_id = m2.matchup_id
+  AND m1.team != m2.team
+  AND m1.sum_points > m2.sum_points
+ORDER BY
+  m1.season, m1.week_num, m1.matchup_id;
+```
+![Screenshot 2024-08-20 at 4 06 01 PM](https://github.com/user-attachments/assets/78f30aca-e9e7-4d6d-95c9-6779073d0ba4)
+
+#### Generating the Standings Table
+I added a `pts_for` and a `pts_against` column using CTE's.
+```sql
+CREATE TABLE final_standings AS (
+  WITH pts_against_winners AS (
+    SELECT
+      season, winner AS team,
+      ROUND(SUM(loser_points), 2) AS points_against
+    FROM regular_season_matchups
+    GROUP BY season, winner
+  ),
+  pts_against_losers AS (
+    SELECT
+      season, loser AS team,
+      ROUND(SUM(winner_points), 2) AS points_against
+    FROM regular_season_matchups
+    GROUP BY season, loser
+  ),
+  final_pts_for AS (
+    SELECT
+      season, team,
+      ROUND(SUM(points), 2) AS pts_for
+    FROM
+      player_performances_CLEAN
+    GROUP BY
+      season, team
+  ),
+  final_pts_against AS
+  (
+    SELECT
+      season, team, SUM(points_against) AS pts_against
+    FROM (
+      SELECT * FROM pts_against_winners
+      UNION ALL
+      SELECT * FROM pts_against_losers
+    )
+    GROUP BY
+      season, team
+  ),
+  wins_and_losses AS (
+    SELECT
+      season,
+      winner AS team,
+      COUNT(winner) AS wins,
+      14 - COUNT(winner) AS losses
+    FROM
+      regular_season_matchups
+    GROUP BY
+      season, winner
+    ORDER BY
+      season, wins DESC
+  )
+  SELECT
+    wl.season, wl.team, wl.wins,
+    wl.losses, pf.pts_for, pa.pts_against
+  FROM
+    wins_and_losses wl
+  JOIN
+    final_pts_against pa ON
+    wl.season = pa.season AND
+    wl.team = pa.team 
+  JOIN
+    final_pts_for pf ON
+    wl.season = pf.season AND
+    wl.team = pf.team
+  ORDER BY
+    wl.season, wl.wins DESC,
+    pf.pts_for DESC, pa.pts_against
+);
+```
+![Screenshot 2024-08-20 at 4 09 18 PM](https://github.com/user-attachments/assets/132d70bf-2754-404d-a363-1372f6c60cf9)
+
+### Exploratory Analysis
+Answering some questions I have about the data.
+
+#### Who has the most regular season wins in league history?
+![Screenshot 2024-08-20 at 4 29 57 PM](https://github.com/user-attachments/assets/5b0fa056-ea68-49df-860c-896e594dbc54)
+
+#### What were the five highest scoring matchups in the regular season?
+![Screenshot 2024-08-20 at 4 30 28 PM](https://github.com/user-attachments/assets/a87bc007-6ed6-498f-a75e-82bb056ef4c6)
+
+#### What were the five biggest blowouts in regular season? What were the five closest games?
+Biggest blowouts:
+![Screenshot 2024-08-20 at 4 31 00 PM](https://github.com/user-attachments/assets/0ab180ca-db57-4204-b9df-7459618d0fa3)
+
+Closest games:
+![Screenshot 2024-08-20 at 4 31 27 PM](https://github.com/user-attachments/assets/6e7dd0f5-9379-4795-a4b5-0b4a2bf4fd31)
+
+#### What is the average contribution as a percentage of total points for a player of each position for a team in a regular season game?
+![Screenshot 2024-08-20 at 4 34 08 PM](https://github.com/user-attachments/assets/b8fc4494-befb-4be1-8464-363873f25e17)
+![Screenshot 2024-08-20 at 4 34 30 PM](https://github.com/user-attachments/assets/3c2f03b0-3307-4ae1-ad51-c17fa819c535)
+
+#### Which teams have the highest QB averages in regular season games?
+![Screenshot 2024-08-20 at 4 50 25 PM](https://github.com/user-attachments/assets/c0aba44a-726d-4e6c-a20f-1b3674eadfbf)
+
+### Effects of the TE Premium
 ## Conclusion
 
