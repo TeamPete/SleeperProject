@@ -949,6 +949,14 @@ ORDER BY
 ```
 ![Screenshot 2024-08-20 at 5 14 38 PM](https://github.com/user-attachments/assets/3a426186-569f-4f84-a3f5-f26b7c613a46)
 
+On Tableau, I plot these values on box plots to compare the distribution of tight end performances in half PPR and TE premium scoring systems, so we can visualize and better analyze the effect of a TE premium.
+![Screenshot 2024-08-20 171934](https://github.com/user-attachments/assets/12a8e831-a3c2-4a6e-b97d-f3675c4ffe57)
+
+Right off the bat, we can observe that with the TE premium, there are higher scores for tight ends. There is a higher median and an unpward shift in the overall distribution. Not only that, the spread of scores is larger in the TE Premium system, suggesting that there is more performance variability. The higher outliers with the TE premium can also suggest a potential to score exceptionally high on a weekly basis, which could affect the outcomes of fantasy matchups greatly.
+
+In an earlier query, we revealed the average contribution as a percentage of total points for a player of each position for a team. We discovered that tight end had the least average contribution. How would this query change with the adjusted scores in a TE premium?
+
+How would the standings change in 2023?
 
 ## Conclusion
 
