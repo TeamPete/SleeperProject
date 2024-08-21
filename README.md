@@ -912,5 +912,43 @@ Closest games:
 ![Screenshot 2024-08-20 at 4 50 25 PM](https://github.com/user-attachments/assets/c0aba44a-726d-4e6c-a20f-1b3674eadfbf)
 
 ### Effects of the TE Premium
+In this query, I compare the 2023 player performances of the original scoring system to the that of the TE premium.
+```sql
+WITH c_te AS (
+  SELECT
+    p.season,
+    p.week_num,
+    n.name,
+    p.points AS pts_half_ppr,
+    t.points AS pts_te_premium
+  FROM
+    player_performances p
+    JOIN nfl_players n ON p.player_id = n.player_id
+    LEFT JOIN player_scores_te_premium t ON p.player_id = t.player_id
+    AND p.season = t.season
+    AND p.week_num = t.week_num
+  WHERE
+    p.season = 2023
+    AND n.position = 'TE'
+  ORDER BY
+    p.points DESC
+)
+SELECT
+  week_num AS Week,
+  name AS Name,
+  pts_half_ppr AS `Half PPR`,
+  pts_te_premium AS `With TE Premium`
+FROM
+  c_te
+WHERE
+  week_num < 15
+ORDER BY
+  week_num,
+  pts_half_ppr DESC,
+  pts_te_premium DESC;
+```
+![Screenshot 2024-08-20 at 5 14 38 PM](https://github.com/user-attachments/assets/3a426186-569f-4f84-a3f5-f26b7c613a46)
+
+
 ## Conclusion
 
